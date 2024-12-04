@@ -308,6 +308,7 @@ class HonSagashi(Source):
             book["jpno"] = identifiers.get("JPNO", [""])[0]
             book["ndlbibid"] = identifiers.get("NDLBibID", [""])[0]
             book["isbn"] = identifiers.get("ISBN", [""])[0]
+            book["isbn"] = book["isbn"].replace("-", '')
 
         itemList = (
             jsonData["subject"].get("NDLSH", [])
@@ -357,6 +358,7 @@ class HonSagashi(Source):
                 "dc:identifier", {"xsi:type": "dcndl:ISBN"}
             )
             book["isbn"] = isbnElement.text if isbnElement else ""
+            book["isbn"] = book["isbn"].replace("-", '')
 
             tags = []
             for subject in item.find_all("dc:subject"):
