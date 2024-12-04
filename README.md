@@ -4,6 +4,14 @@ HonSagashi - A Calibre metadata source plugin for Japanese book.
 
 一个专用于获取日文图书元数据的calibre插件。
 
+## 功能特性
+
+本插件可以根据“ISBN”、“NDL书目ID”、“书名+作者”三类条件自动从日本国立国会图书馆检索以下图书元数据：
+
+* 书名、作者、出版社、出版时间
+* 标签（图书类别信息）：**支持[日本十进分类法（NDC）](https://ja.wikipedia.org/wiki/%E6%97%A5%E6%9C%AC%E5%8D%81%E9%80%B2%E5%88%86%E9%A1%9E%E6%B3%95)和[国立国会图书馆分类表（NDLC）](https://ja.wikipedia.org/wiki/%E5%9B%BD%E7%AB%8B%E5%9B%BD%E4%BC%9A%E5%9B%B3%E6%9B%B8%E9%A4%A8%E5%88%86%E9%A1%9E%E8%A1%A8)。**
+* ISBN、国立国会图书馆书目ID（NDLBibID）、日本全国书目编号（JPNO）：**即使是1981年之前无ISBN的日语图书同样可以得到较好的支持！**
+
 ## 测试&开发
 
 请使用`calibre-customize -b .`将该插件添加入calibre测试效果。
