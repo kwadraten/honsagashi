@@ -274,17 +274,25 @@ class HonSagashi(Source):
         #     bytedata = gzip.decompress(bytedata)
         jsonText = bytedata.decode("utf-8")
         jsonData = json.loads(jsonText)
-        book = {
-            "title": jsonData["title"][0]["value"],
-            "authors": [creator["name"] for creator in jsonData["creator"]],
-            "publisher": jsonData["publisher"][0]["name"],
-            "jpno": jsonData["identifier"]["JPNO"][0],
-            "ndlbibid": jsonData["identifier"]["NDLBibID"][0],
-            "isbn": jsonData["identifier"]["ISBN"][0].replace("-", ""),
-            "pubdate": jsonData["date"],
-            "description": "",
-            "tags": [],
-        }
+        try:
+            book = {
+                "title": jsonData["title"][0]["value"],
+                "authors": [creator["name"] for creator in jsonData["creator"]],
+                "publisher": jsonData["publisher"][0]["name"],
+                "pubdate": jsonData["date"],
+                "description": "",
+                "tags": [],
+            }
+        except KeyError:
+            log.error("本条记录缺失关键字段，自动停止[使用的NDLBibID为{}]".format(ndlbibid))
+            return
+
+        if jsonData.get("identifier"):
+            identifiers = jsonData["identifier"]
+            book["jpno"] = identifiers.get("JPNO", [""])[0]
+            book["ndlbibid"] = identifiers.get("NDLBibID", [""])[0]
+            book["isbn"] = identifiers.get("ISBN", [""])[0]
+
 
         itemList = (
             jsonData["subject"].get("NDLSH", [])
