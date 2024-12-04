@@ -20,6 +20,7 @@ import json
 DEFAULT_MAXIMUM_RESULTS = 20
 DEFAULT_FILENAME_SHORTCUT = True
 DEFAULT_CLEAN_AUTHORNAME = True
+DEFAULT_COVER_SOURCE = 'books'
 
 # 以下为URL模板
 NDL_OPENSEARCH_BASE_URL = "https://ndlsearch.ndl.go.jp/api/opensearch"
@@ -41,7 +42,10 @@ SEARCH_NDLBIBID_TEMPLATE = (
 NDL_EXPORT_JSON_TEMPLATE = (
     "https://ndlsearch.ndl.go.jp/api/bib/download/json?cs=bib&f-token={token}"
 )
-NDL_COVER_TEMPLATE = "https://ndlsearch.ndl.go.jp/thumbnail/{isbn}.jpg"
+COVER_TEMPLATES = {
+    'ndl': "https://ndlsearch.ndl.go.jp/thumbnail/{isbn}.jpg",
+    'books': "https://www.books.or.jp/img/books_icon/{isbn}.jpg",
+}
 
 # 以下为默认请求头
 HEADERS = {
@@ -123,6 +127,8 @@ class HonSagashi(Source):
     version = (1, 0, 0)
     supported_platforms = ["windows", "osx", "linux"]
 
+    auto_trim_covers = False
+
     capabilities = frozenset(["identify", "cover"])
     touched_fields = frozenset(
         [
@@ -164,6 +170,14 @@ class HonSagashi(Source):
             ("净化人名"),
             ("自动去除人名中的空格、逗号以及数字"),
         ),
+        Option(
+            "cover_source",
+            "choices",
+            DEFAULT_COVER_SOURCE,
+            ("封面来源"),
+            ("选择从哪个数据库下载封面（从NDL下载封面更快，但分辨率更低）"),
+            {'ndl': '国立国会图书馆（NDL）', 'books': '出版书目数据库（Books）'}
+        )
     )
 
     def __init__(self, *args, **kwargs):
@@ -284,7 +298,9 @@ class HonSagashi(Source):
                 "tags": [],
             }
         except KeyError:
-            log.error("本条记录缺失关键字段，自动停止[使用的NDLBibID为{}]".format(ndlbibid))
+            log.error(
+                "本条记录缺失关键字段，自动停止[使用的NDLBibID为{}]".format(ndlbibid)
+            )
             return
 
         if jsonData.get("identifier"):
@@ -292,7 +308,6 @@ class HonSagashi(Source):
             book["jpno"] = identifiers.get("JPNO", [""])[0]
             book["ndlbibid"] = identifiers.get("NDLBibID", [""])[0]
             book["isbn"] = identifiers.get("ISBN", [""])[0]
-
 
         itemList = (
             jsonData["subject"].get("NDLSH", [])
@@ -372,6 +387,14 @@ class HonSagashi(Source):
 
         return metadata
 
+    def get_cached_cover_url(self, identifiers):
+        if "isbn" not in identifiers:
+            return None
+        isbn = identifiers["isbn"].replace("-", "")
+        template = COVER_TEMPLATES[self.prefs.get('cover_source')]
+        coverURL = template.format(isbn=isbn)
+        return coverURL
+
     def download_cover(
         self,
         log,
@@ -383,13 +406,13 @@ class HonSagashi(Source):
         timeout=10,
         get_best_cover=False,
     ):
-        if "isbn" not in identifiers:
+        coverURL = self.get_cached_cover_url(identifiers=identifiers)
+        if coverURL == None:
             return
-        isbn = identifiers["isbn"].replace("-", "")
-        coverURL = NDL_COVER_TEMPLATE.format(isbn=isbn)
         log.info("封面url为：", coverURL)
+        br = self.browser
         try:
-            coverData = self.browser.open_novisit(coverURL, timeout=timeout).read()
+            coverData = br.open_novisit(coverURL, timeout=timeout).read()
             result_queue.put((self, coverData))
         except Exception as e:
             if callable(getattr(e, "getcode", None)) and e.getcode() == 404:
