@@ -366,7 +366,7 @@ class HonSagashi(Source):
         if self.prefs.get("clean_authorname"):
             temp = []
             for author in metadata.authors:
-                cleanname = re.sub(r"[\s\d,，]+", "", author)
+                cleanname = re.sub(r"[\s\d,，\-]+", "", author)
                 temp.append(cleanname)
             metadata.authors = temp
 
