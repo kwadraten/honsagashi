@@ -22,6 +22,8 @@ HonSagashi - A Calibre metadata source plugin for Japanese book.
 
 如果修改了插件选项、获取封面的功能，请在调试时重启calibre以看到最新效果。
 
+最后请使用`python pack.py`进行打包。
+
 如果对插件的工作原理有任何疑问，可以参考[Calibre官方文档中的相应部分](https://manual.calibre-ebook.com/zh_CN/plugins.html#module-calibre.ebooks.metadata.sources.base)，以及[Calibre自带的元数据插件](https://github.com/kovidgoyal/calibre/tree/master/src/calibre/ebooks/metadata/sources)。
 
 ## 参考&致谢

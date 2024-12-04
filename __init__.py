@@ -20,7 +20,7 @@ import json
 DEFAULT_MAXIMUM_RESULTS = 20
 DEFAULT_FILENAME_SHORTCUT = True
 DEFAULT_CLEAN_AUTHORNAME = True
-DEFAULT_COVER_SOURCE = 'books'
+DEFAULT_COVER_SOURCE = "books"
 
 # 以下为URL模板
 NDL_OPENSEARCH_BASE_URL = "https://ndlsearch.ndl.go.jp/api/opensearch"
@@ -43,8 +43,8 @@ NDL_EXPORT_JSON_TEMPLATE = (
     "https://ndlsearch.ndl.go.jp/api/bib/download/json?cs=bib&f-token={token}"
 )
 COVER_TEMPLATES = {
-    'ndl': "https://ndlsearch.ndl.go.jp/thumbnail/{isbn}.jpg",
-    'books': "https://www.books.or.jp/img/books_icon/{isbn}.jpg",
+    "ndl": "https://ndlsearch.ndl.go.jp/thumbnail/{isbn}.jpg",
+    "books": "https://www.books.or.jp/img/books_icon/{isbn}.jpg",
 }
 
 # 以下为默认请求头
@@ -121,7 +121,7 @@ def ToHalfwidthNumber(text):
 # ==========
 class HonSagashi(Source):
 
-    name = "日语图书元数据"
+    name = "本探し"
     author = "平方和寒"
     description = "一个专用于获取日文图书元数据的calibre插件。"
     version = (1, 0, 0)
@@ -176,8 +176,8 @@ class HonSagashi(Source):
             DEFAULT_COVER_SOURCE,
             ("封面来源"),
             ("选择从哪个数据库下载封面（从NDL下载封面更快，但分辨率更低）"),
-            {'ndl': '国立国会图书馆（NDL）', 'books': '出版书目数据库（Books）'}
-        )
+            {"ndl": "国立国会图书馆（NDL）", "books": "出版书目数据库（Books）"},
+        ),
     )
 
     def __init__(self, *args, **kwargs):
@@ -308,7 +308,7 @@ class HonSagashi(Source):
             book["jpno"] = identifiers.get("JPNO", [""])[0]
             book["ndlbibid"] = identifiers.get("NDLBibID", [""])[0]
             book["isbn"] = identifiers.get("ISBN", [""])[0]
-            book["isbn"] = book["isbn"].replace("-", '')
+            book["isbn"] = book["isbn"].replace("-", "")
 
         itemList = (
             jsonData["subject"].get("NDLSH", [])
@@ -358,7 +358,7 @@ class HonSagashi(Source):
                 "dc:identifier", {"xsi:type": "dcndl:ISBN"}
             )
             book["isbn"] = isbnElement.text if isbnElement else ""
-            book["isbn"] = book["isbn"].replace("-", '')
+            book["isbn"] = book["isbn"].replace("-", "")
 
             tags = []
             for subject in item.find_all("dc:subject"):
@@ -393,7 +393,7 @@ class HonSagashi(Source):
         if "isbn" not in identifiers:
             return None
         isbn = identifiers["isbn"].replace("-", "")
-        template = COVER_TEMPLATES[self.prefs.get('cover_source')]
+        template = COVER_TEMPLATES[self.prefs.get("cover_source")]
         coverURL = template.format(isbn=isbn)
         return coverURL
 
