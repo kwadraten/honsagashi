@@ -63,8 +63,18 @@ def MetadataFactory(book, log):
     mi.publisher = book["publisher"]
     pubdate = book.get("pubdate", None)
     if pubdate:
+        pubdate = ToHalfwidthNumber(pubdate)
+        pubdate = re.sub(r"(\(.+\))|(（.+）)", "", pubdate)
+        pubdate = pubdate[:-1] if not re.match(r"\d", pubdate[-1]) else pubdate
         try:
-            mi.pubdate = datetime.strptime(pubdate, "%Y.%m")
+            if re.fullmatch(r"\d{4}\.\d{1,2}", pubdate):
+                mi.pubdate = datetime.strptime(pubdate, "%Y.%m")
+            elif re.fullmatch(r"\d{4}\.\d{1,2}\.\d{1,2}", pubdate):
+                mi.pubdate = datetime.strptime(pubdate, "%Y.%m.%d")
+            elif re.fullmatch(r"\d{4}", pubdate):
+                mi.pubdate = datetime.strptime(pubdate, "%Y")
+            else:
+                raise ValueError
         except:
             log.error("出版日期解析失败，该日期形为{}".format(pubdate))
     mi.comments = book.get("description", "")
@@ -79,7 +89,27 @@ def ToTextList(self):
     return [result.text for result in self]
 
 
+# 添加到Result类当中作为方法，以便链式调用
 ResultSet.toTextList = ToTextList
+
+
+# 以下为全角数字转半角的函数
+def ToHalfwidthNumber(text):
+    translation_table = str.maketrans(
+        {
+            "０": "0",
+            "１": "1",
+            "２": "2",
+            "３": "3",
+            "４": "4",
+            "５": "5",
+            "６": "6",
+            "７": "7",
+            "８": "8",
+            "９": "9",
+        }
+    )
+    return text.translate(translation_table)
 
 
 # ==========
@@ -281,19 +311,29 @@ class HonSagashi(Source):
         soup = BeautifulSoup(xml, features="xml")
 
         for item in soup.find_all("item"):
-            book = {
-                "title": item.find("dc:title").text,
-                "authors": item.find_all("dc:creator").toTextList(),
-                "publisher": item.find("dc:publisher").text,
-                "pubdate": item.find("dcterms:issued").text,
-            }
+            try:
+                book = {
+                    "title": item.find("dc:title").text,
+                    "authors": item.find_all("dc:creator").toTextList(),
+                    "publisher": item.find("dc:publisher").text,
+                    "pubdate": item.find("dcterms:issued").text,
+                }
+            except AttributeError:
+                log.error("本条记录缺失关键字段，跳过")
+                continue
 
-            jpnoElement = soup.find("item").find("dc:identifier", {"xsi:type": "dcndl:JPNO"})
-            book["jpno"] = jpnoElement.text if jpnoElement else ''
-            ndlbibidElement = soup.find("item").find("dc:identifier", {"xsi:type": "dcndl:NDLBibID"})
-            book["ndlbibid"] = ndlbibidElement.text if ndlbibidElement else ''
-            isbnElement = soup.find("item").find("dc:identifier", {"xsi:type": "dcndl:ISBN"})
-            book["isbn"] = isbnElement.text if isbnElement else ''
+            jpnoElement = soup.find("item").find(
+                "dc:identifier", {"xsi:type": "dcndl:JPNO"}
+            )
+            book["jpno"] = jpnoElement.text if jpnoElement else ""
+            ndlbibidElement = soup.find("item").find(
+                "dc:identifier", {"xsi:type": "dcndl:NDLBibID"}
+            )
+            book["ndlbibid"] = ndlbibidElement.text if ndlbibidElement else ""
+            isbnElement = soup.find("item").find(
+                "dc:identifier", {"xsi:type": "dcndl:ISBN"}
+            )
+            book["isbn"] = isbnElement.text if isbnElement else ""
 
             tags = []
             for subject in item.find_all("dc:subject"):
