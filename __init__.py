@@ -41,6 +41,7 @@ SEARCH_NDLBIBID_TEMPLATE = (
 NDL_EXPORT_JSON_TEMPLATE = (
     "https://ndlsearch.ndl.go.jp/api/bib/download/json?cs=bib&f-token={token}"
 )
+NDL_COVER_TEMPLATE = "https://ndlsearch.ndl.go.jp/thumbnail/{isbn}.jpg"
 
 # 以下为默认请求头
 HEADERS = {
@@ -92,7 +93,7 @@ class HonSagashi(Source):
     version = (1, 0, 0)
     supported_platforms = ["windows", "osx", "linux"]
 
-    capabilities = frozenset(["identify"])
+    capabilities = frozenset(["identify", "cover"])
     touched_fields = frozenset(
         [
             "pubdate",
@@ -199,11 +200,11 @@ class HonSagashi(Source):
         xmlText = bytedata.decode("utf-8")
         metadatas = self.parseXML(xmlText, log)
         return metadatas
-    
+
     def acquireByInfo(self, title, authors, log):
-        authorStr = ' '.join(authors)
-        quotedAuthor = urllib.parse.quote(authorStr, 'utf-8')
-        quotedTitle = urllib.parse.quote(title, 'utf-8')
+        authorStr = " ".join(authors)
+        quotedAuthor = urllib.parse.quote(authorStr, "utf-8")
+        quotedTitle = urllib.parse.quote(title, "utf-8")
         queryURL = OpensearchURLTemplate(
             self.prefs.get("max_results"), title=quotedTitle, author=quotedAuthor
         )
@@ -284,17 +285,15 @@ class HonSagashi(Source):
                 "title": item.find("dc:title").text,
                 "authors": item.find_all("dc:creator").toTextList(),
                 "publisher": item.find("dc:publisher").text,
-                "jpno": soup.find("item")
-                .find("dc:identifier", {"xsi:type": "dcndl:JPNO"})
-                .text,
-                "ndlbibid": soup.find("item")
-                .find("dc:identifier", {"xsi:type": "dcndl:NDLBibID"})
-                .text,
-                "isbn": soup.find("item")
-                .find("dc:identifier", {"xsi:type": "dcndl:ISBN"})
-                .text,
                 "pubdate": item.find("dcterms:issued").text,
             }
+
+            jpnoElement = soup.find("item").find("dc:identifier", {"xsi:type": "dcndl:JPNO"})
+            book["jpno"] = jpnoElement.text if jpnoElement else ''
+            ndlbibidElement = soup.find("item").find("dc:identifier", {"xsi:type": "dcndl:NDLBibID"})
+            book["ndlbibid"] = ndlbibidElement.text if ndlbibidElement else ''
+            isbnElement = soup.find("item").find("dc:identifier", {"xsi:type": "dcndl:ISBN"})
+            book["isbn"] = isbnElement.text if isbnElement else ''
 
             tags = []
             for subject in item.find_all("dc:subject"):
@@ -305,25 +304,50 @@ class HonSagashi(Source):
             book["tags"] = tags
 
             descriptions = item.find_all("dc:description").toTextList()
+            descriptions += item.find_all("description").toTextList()
             print(descriptions)
             book["description"] = ""
             for description in descriptions:
                 book["description"] += "<p>{}</p>".format(description)
-            log.info(descriptions)
 
             metadatas.append(MetadataFactory(book, log))
 
         return metadatas
-    
+
     def postProcess(self, metadata: MetaInformation):
-        if self.prefs.get('clean_authorname'):
+        if self.prefs.get("clean_authorname"):
             temp = []
             for author in metadata.authors:
-                cleanname = re.sub(r'[\s\d,，]+', '', author)
+                cleanname = re.sub(r"[\s\d,，]+", "", author)
                 temp.append(cleanname)
             metadata.authors = temp
 
         return metadata
+
+    def download_cover(
+        self,
+        log,
+        result_queue,
+        abort,
+        title=None,
+        authors=None,
+        identifiers={},
+        timeout=10,
+        get_best_cover=False,
+    ):
+        if "isbn" not in identifiers:
+            return
+        isbn = identifiers["isbn"].replace("-", "")
+        coverURL = NDL_COVER_TEMPLATE.format(isbn=isbn)
+        log.info("封面url为：", coverURL)
+        try:
+            coverData = self.browser.open_novisit(coverURL, timeout=timeout).read()
+            result_queue.put((self, coverData))
+        except Exception as e:
+            if callable(getattr(e, "getcode", None)) and e.getcode() == 404:
+                log.error("未能根据ISBN找到封面，放弃下载")
+            else:
+                log.exception("出错，基于ISBN获取封面失败")
 
 
 # =======
